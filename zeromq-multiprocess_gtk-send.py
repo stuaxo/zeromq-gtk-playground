@@ -19,6 +19,7 @@ website: zetcode.com
 last edited: August 2012
 '''
 
+import math
 import multiprocessing
 import time
 import threading
@@ -53,10 +54,6 @@ def pub_function(context):
             # cmd_types its a good idea as matching terminates after the first part.
             #print "Send draw commands"
 
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('save')          #Command
-
-
             pub_sock.send('draw', zmq.SNDMORE)   #Command Type
             pub_sock.send('set_source_rgba', zmq.SNDMORE)               #Command
             pub_sock.send(struct.pack("<ffff", 1, 1, 0, 1))
@@ -65,18 +62,57 @@ def pub_function(context):
             pub_sock.send('draw', zmq.SNDMORE)     #Command Type
             pub_sock.send('paint')   #Command Type
 
-
-
             pub_sock.send('draw', zmq.SNDMORE)   #Command Type
             pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
             pub_sock.send(struct.pack("<fff", 0, 0, 0))
 
+            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
+            pub_sock.send('save')          #Command
+
+            for j in range(5, 15):
+
+                pub_sock.send("draw", zmq.SNDMORE)
+                pub_sock.send('rotate', zmq.SNDMORE)
+                pub_sock.send(struct.pack("<f", 90 + j * 10 + (i / 100.0)))
 
 
-            pub_sock.send("draw", zmq.SNDMORE)
-            pub_sock.send('move_to', zmq.SNDMORE)
-            pub_sock.send(struct.pack("<ff", 24, 24))
 
+
+                pub_sock.send("draw", zmq.SNDMORE)
+                pub_sock.send('move_to', zmq.SNDMORE)
+                pub_sock.send(struct.pack("<ff", 24, 24))
+
+
+                pub_sock.send('draw', zmq.SNDMORE)   #Command Type
+                pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
+                pub_sock.send(struct.pack("<fff", math.sin(i / 10.0), math.cos(i / 15.0), math.sin(i / 25.0 + j / 100.0)))
+
+                pub_sock.send('draw', zmq.SNDMORE)     #Command Type
+                pub_sock.send('rectangle', zmq.SNDMORE)          #Command
+                pub_sock.send(struct.pack("<ffff", i, i / 4.0, 40 + j, 40 + j))
+
+
+                pub_sock.send('draw', zmq.SNDMORE)     #Command Type
+                pub_sock.send('fill')          #Command
+
+
+
+
+                pub_sock.send('draw', zmq.SNDMORE)   #Command Type
+                pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
+                pub_sock.send(struct.pack("<fff", 1, 0, 0))
+
+                pub_sock.send('draw', zmq.SNDMORE)     #Command Type
+                pub_sock.send('rectangle', zmq.SNDMORE)          #Command
+                pub_sock.send(struct.pack("<ffff", 20, i / 4.0, 40, 40))
+
+
+                pub_sock.send('draw', zmq.SNDMORE)     #Command Type
+                pub_sock.send('fill')          #Command
+
+
+            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
+            pub_sock.send('restore')          #Command
 
 
             pub_sock.send("draw", zmq.SNDMORE)
@@ -86,7 +122,7 @@ def pub_function(context):
 
             pub_sock.send("draw", zmq.SNDMORE)
             pub_sock.send('set_font_size', zmq.SNDMORE)
-            pub_sock.send(struct.pack("<f", 24))
+            pub_sock.send(struct.pack("<f", 128))
 
 
             pub_sock.send("draw", zmq.SNDMORE)
@@ -97,33 +133,6 @@ def pub_function(context):
             pub_sock.send('draw', zmq.SNDMORE)     #Command Type
             pub_sock.send('fill')          #Command
 
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
-            pub_sock.send(struct.pack("<fff", 1, 1, 1))
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('rectangle', zmq.SNDMORE)          #Command
-            pub_sock.send(struct.pack("<ffff", i / 4.0, i / 4.0, 40, 40))
-
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('fill')          #Command
-
-
-
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
-            pub_sock.send(struct.pack("<fff", 1, 0, 0))
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('rectangle', zmq.SNDMORE)          #Command
-            pub_sock.send(struct.pack("<ffff", 20, i / 4.0, 40, 40))
-
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('fill')          #Command
 
 
             pub_sock.send('draw', zmq.SNDMORE)   #Command Type

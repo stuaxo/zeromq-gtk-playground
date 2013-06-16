@@ -19,6 +19,7 @@ website: zetcode.com
 last edited: August 2012
 '''
 
+import argparse
 import multiprocessing
 import time
 import threading
@@ -39,13 +40,15 @@ class MouseButtons:
     
 class CairoRecieverWindow(Gtk.Window):
 
-    def __init__(self):
+    def __init__(self, device_offset=(0, 0), size=(300, 200)):
         super(CairoRecieverWindow, self).__init__()
         self.run = True
         self.recv_queue = Queue.Queue()
         self.draw_queue = Queue.Queue()
         self.init_ui()
-        
+        self._device_offset = device_offset
+        self._size=size
+        self.resize(*self._size)        
         
     def init_ui(self):    
 
@@ -54,7 +57,7 @@ class CairoRecieverWindow(Gtk.Window):
         self.add(self.darea)
         
         self.set_title("Reciever window.")
-        self.resize(300, 200)
+
         #self.set_position(Gtk.WindowPosition.CENTER)
         self.connect("delete-event", self.on_close)
         self.show_all()
@@ -66,7 +69,8 @@ class CairoRecieverWindow(Gtk.Window):
         self.run = False
     
     def on_draw(self, wid, cr):
-
+        t = cr.get_target()
+        t.set_device_offset(*self._device_offset)
         while True:
             try:
                 cmd, args = self.draw_queue.get_nowait()
@@ -74,10 +78,18 @@ class CairoRecieverWindow(Gtk.Window):
                     cr.set_source_rgb(*args)
                 elif cmd == 'set_source_rgba':
                     cr.set_source_rgba(*args)
+                elif cmd == 'rotate':
+                    cr.rotate(*args)
                 elif cmd == 'close_path':
                     cr.close_path()
                 elif cmd == 'fill':
                     cr.fill()
+                elif cmd == 'stroke':
+                    cr.stroke()
+                elif cmd == 'fill_preserve':
+                    cr.fill_preserve()
+                elif cmd == 'stroke_preserve':
+                    cr.stroke_preserve()
                 elif cmd == 'move_to':
                     cr.move_to(*args)
                 elif cmd == 'select_font_face':
@@ -140,16 +152,18 @@ class CairoRecieverWindow(Gtk.Window):
                     args    = struct.unpack("<fff", sub_sock.recv() )
                 elif cmd in ["line_to", "move_to", ]:
                     args    = struct.unpack("<ff", sub_sock.recv() )
-                elif cmd in ["set_font_size",]:
+                elif cmd in ["rotate", "set_font_size",]:
                     args    = struct.unpack("<f", sub_sock.recv() )
-                elif cmd in ["fill", "close_path", "save", "restore",]:
+                elif cmd in ["stroke", "stroke_preserve", "fill", "fill_preserve", "close_path", "save", "restore",]:
                     args = None
-                elif cmd in ["show_text",]:
+                elif cmd in ["show_text", ]:
                     args    = sub_sock.recv()
                 elif cmd in ["select_font_face",]:
                     args    = struct.unpack("<sii", sub_sock.recv() )
                 else:
-                    args    = sub_sock.recv()
+                    print 'Recieved unknown command {} {}'.format(cmd_type, cmd)
+                    raise NotImplementedError()
+                    #args    = sub_sock.recv()
                 
             #print "Recieved msg:{}  {}( {} )".format(cmd_type, cmd, args)
             
@@ -177,114 +191,20 @@ class CairoRecieverWindow(Gtk.Window):
 
 
     
-def pub_function(context):
-    """ Definition of the pub socket.
-
-        It published messages in unidirectional way.
-    """
-    pub_sock = context.socket(zmq.PUB)
-    pub_sock.bind("ipc:///tmp/cairo-pushpub")
-
-    frame = 0
-    while True:
-        for i in range(0, 800):  # Used for positioning the squares
-            frame += 1
-            # ZeroMQ messages can be broken up into multiple parts.
-            # Messages are guaranteed to either come with all parts or not at all,
-            # so don't worry about only receiving a partial message.
-            
-            # We're going to send the cmd_type in a separate part, it's what the SUB socket
-            # will use to decide if it wants to receive this message.
-            # You don't need to use two parts for a pub/sub socket, but if you're using
-            # cmd_types its a good idea as matching terminates after the first part.
-            #print "Send draw commands"
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('save')          #Command
-
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('set_source_rgba', zmq.SNDMORE)               #Command
-            pub_sock.send(struct.pack("<ffff", 1, 1, 0, 1))
-
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('paint')   #Command Type
-
-
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
-            pub_sock.send(struct.pack("<fff", 0, 0, 0))
-
-
-
-            pub_sock.send("draw", zmq.SNDMORE)
-            pub_sock.send('move_to', zmq.SNDMORE)
-            pub_sock.send(struct.pack("<ff", 24, 24))
-
-
-
-            pub_sock.send("draw", zmq.SNDMORE)
-            pub_sock.send('select_font_face', zmq.SNDMORE)
-            pub_sock.send(struct.pack("<sii", "Purisa", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD))
-
-
-            pub_sock.send("draw", zmq.SNDMORE)
-            pub_sock.send('set_font_size', zmq.SNDMORE)
-            pub_sock.send(struct.pack("<f", 24))
-
-
-            pub_sock.send("draw", zmq.SNDMORE)
-            pub_sock.send('show_text', zmq.SNDMORE)
-            pub_sock.send("Frame {}".format(frame))
-
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('fill')          #Command
-
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
-            pub_sock.send(struct.pack("<fff", 1, 1, 1))
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('rectangle', zmq.SNDMORE)          #Command
-            pub_sock.send(struct.pack("<ffff", i / 4.0, i / 4.0, 40, 40))
-
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('fill')          #Command
-
-
-
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('set_source_rgb', zmq.SNDMORE)               #Command
-            pub_sock.send(struct.pack("<fff", 1, 0, 0))
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('rectangle', zmq.SNDMORE)          #Command
-            pub_sock.send(struct.pack("<ffff", 20, i / 4.0, 40, 40))
-
-
-            pub_sock.send('draw', zmq.SNDMORE)     #Command Type
-            pub_sock.send('fill')          #Command
-
-
-            pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-            pub_sock.send('finish')               #Command
-
-            time.sleep(1.0 / 60.0)
-
-    pub_sock.send('draw', zmq.SNDMORE)   #Command Type
-    pub_sock.send('quit')               #Command
 
 
         
 def main():
 
-    app = CairoRecieverWindow()
+    parser = argparse.ArgumentParser(description='Cairo Command Reciever.')
+    parser.add_argument('--device-offset', help='', default="0.0, 0.0")
+    parser.add_argument('--size', help='', default="0.0, 0.0")
+    
+    args = parser.parse_args()
+    device_offset = [float(coord) for coord in args.device_offset.split(',') ]
+    size = [float(coord) for coord in args.size.split(',') ]
+    
+    app = CairoRecieverWindow(device_offset=device_offset, size=size)
 
     thread_sub = threading.Thread(target=app.sub_function)
     thread_sub.daemon=True

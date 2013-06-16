@@ -48,14 +48,17 @@ class CairoRecieverWindow(Gtk.Window):
         self.init_ui()
         self._device_offset = device_offset
         self._size=size
-        self.resize(*self._size)        
+        self.resize(*self._size)
+        self._debug = False
         
     def init_ui(self):    
 
         self.darea = Gtk.DrawingArea()
         self.darea.connect("draw", self.on_draw)
+        self.darea.set_events(Gdk.EventMask.BUTTON_PRESS_MASK) 
         self.add(self.darea)
-        
+
+        self.darea.connect("button-press-event", self.on_button_press)
         self.set_title("Reciever window.")
 
         #self.set_position(Gtk.WindowPosition.CENTER)
@@ -71,9 +74,13 @@ class CairoRecieverWindow(Gtk.Window):
     def on_draw(self, wid, cr):
         t = cr.get_target()
         t.set_device_offset(*self._device_offset)
+        if self._debug:
+            print '[draw]'
         while True:
             try:
                 cmd, args = self.draw_queue.get_nowait()
+                if self._debug:
+                    print '  {}:{}'.format(cmd, args)
                 if cmd == 'set_source_rgb':
                     cr.set_source_rgb(*args)
                 elif cmd == 'set_source_rgba':
@@ -112,6 +119,10 @@ class CairoRecieverWindow(Gtk.Window):
                     print 'Unknown cmd {}.{} '.format(cmd, args)
             except Queue.Empty:
                 break
+        if self._debug:
+            print '[/draw]'
+
+
         
 
                          
@@ -121,7 +132,8 @@ class CairoRecieverWindow(Gtk.Window):
         if e.type == Gdk.EventType.BUTTON_PRESS \
             and e.button == MouseButtons.LEFT_BUTTON:
             
-            pass
+            self._debug = not self._debug
+            print 'debug set to {}'.format(self._debug)
             
         if e.type == Gdk.EventType.BUTTON_PRESS \
             and e.button == MouseButtons.RIGHT_BUTTON:
@@ -175,16 +187,17 @@ class CairoRecieverWindow(Gtk.Window):
             elif cmd == 'finish':
                 #self.recv_queue.put( (cmd, args) )
                 draw_queue = Queue.Queue()
+                got_items = False
                 while True:
                     try:
                         (_cmd, _args) = self.recv_queue.get_nowait()
-                        if _cmd == 'finish':
-                            break
+                        got_items = True
                         draw_queue.put((_cmd, _args))
                     except Queue.Empty:
                         break
-                self.draw_queue = draw_queue
-                self.darea.queue_draw()
+                if got_items:
+                    self.draw_queue = draw_queue
+                    self.darea.queue_draw()
             else:
                 self.recv_queue.put( (cmd, args) )
 

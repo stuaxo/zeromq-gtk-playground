@@ -89,7 +89,7 @@ def pub_function(context):
 
                 pub_sock.send('draw', zmq.SNDMORE)     #Command Type
                 pub_sock.send('rectangle', zmq.SNDMORE)          #Command
-                pub_sock.send(struct.pack("<ffff", i, i / 4.0, 40 + j, 40 + j))
+                pub_sock.send(struct.pack("<ffff", i, i / 4.0, 40 + j * 3, 40 + j * 3))
 
 
                 pub_sock.send('draw', zmq.SNDMORE)     #Command Type
